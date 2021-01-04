@@ -1,9 +1,16 @@
 package com.loucaskreger.armorhotswap;
 
+import java.util.Map;
+
+import com.loucaskreger.armorhotswap.config.Config;
+
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerInteractionManager;
+import net.minecraft.enchantment.Enchantment;
+import net.minecraft.enchantment.EnchantmentHelper;
+import net.minecraft.enchantment.Enchantments;
 import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.item.ItemStack;
@@ -14,9 +21,11 @@ import net.minecraft.util.Hand;
 import net.minecraft.util.TypedActionResult;
 
 public class ArmorHotswap implements ModInitializer {
+	public static final String MOD_ID = "armorhotswap";
 
 	@Override
 	public void onInitialize() {
+		Config.init();
 		onRightClick();
 	}
 
@@ -26,6 +35,7 @@ public class ArmorHotswap implements ModInitializer {
 			ClientPlayerInteractionManager interactionManager = mc.interactionManager;
 
 			if (mc.mouse.wasRightButtonClicked()) {
+
 				ItemStack stack = player.inventory.getMainHandStack();
 				int currentItemIndex = player.inventory.main.indexOf(stack);
 
@@ -33,6 +43,9 @@ public class ArmorHotswap implements ModInitializer {
 				int armorIndexSlot = determineIndex(equipmentSlot);
 
 				if (hand == Hand.MAIN_HAND && armorIndexSlot != -1) {
+					if (Config.INSTANCE.preventCurses && hasCurse(stack)) {
+						return TypedActionResult.fail(stack);
+					}
 					player.playSound(stack.getItem() == Items.ELYTRA ? SoundEvents.ITEM_ARMOR_EQUIP_ELYTRA
 							: SoundEvents.ITEM_ARMOR_EQUIP_GENERIC, 1.0F, 1.0F);
 					interactionManager.clickSlot(player.playerScreenHandler.syncId, armorIndexSlot, currentItemIndex,
@@ -42,6 +55,15 @@ public class ArmorHotswap implements ModInitializer {
 			}
 			return TypedActionResult.pass(ItemStack.EMPTY);
 		});
+	}
+
+	private static boolean hasCurse(ItemStack stack) {
+		Map<Enchantment, Integer> enchantments = EnchantmentHelper.get(stack);
+		if (enchantments.containsKey(Enchantments.BINDING_CURSE)
+				|| enchantments.containsKey(Enchantments.VANISHING_CURSE)) {
+			return true;
+		}
+		return false;
 	}
 
 	/**
