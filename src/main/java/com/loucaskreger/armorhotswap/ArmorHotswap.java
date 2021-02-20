@@ -19,6 +19,7 @@ import net.minecraft.screen.slot.SlotActionType;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.Hand;
 import net.minecraft.util.TypedActionResult;
+import net.minecraft.util.hit.HitResult;
 
 public class ArmorHotswap implements ModInitializer {
 	public static final String MOD_ID = "armorhotswap";
@@ -33,27 +34,37 @@ public class ArmorHotswap implements ModInitializer {
 		UseItemCallback.EVENT.register((player, world, hand) -> {
 			MinecraftClient mc = MinecraftClient.getInstance();
 			ClientPlayerInteractionManager interactionManager = mc.interactionManager;
+			HitResult result = mc.crosshairTarget;
 
-			if (mc.mouse.wasRightButtonClicked()) {
+			switch (result.getType()) {
 
-				ItemStack stack = player.inventory.getMainHandStack();
-				int currentItemIndex = player.inventory.main.indexOf(stack);
+			case MISS:
+			case BLOCK:
+				if (mc.mouse.wasRightButtonClicked()) {
 
-				EquipmentSlot equipmentSlot = MobEntity.getPreferredEquipmentSlot(stack);
-				int armorIndexSlot = determineIndex(equipmentSlot);
+					ItemStack stack = player.inventory.getMainHandStack();
+					int currentItemIndex = player.inventory.main.indexOf(stack);
 
-				if (hand == Hand.MAIN_HAND && armorIndexSlot != -1) {
-					if (Config.INSTANCE.preventCurses && hasCurse(stack)) {
-						return TypedActionResult.fail(stack);
+					EquipmentSlot equipmentSlot = MobEntity.getPreferredEquipmentSlot(stack);
+					int armorIndexSlot = determineIndex(equipmentSlot);
+
+					if (hand == Hand.MAIN_HAND && armorIndexSlot != -1) {
+						if (Config.INSTANCE.preventCurses && hasCurse(stack)) {
+							return TypedActionResult.fail(stack);
+						}
+						player.playSound(stack.getItem() == Items.ELYTRA ? SoundEvents.ITEM_ARMOR_EQUIP_ELYTRA
+								: SoundEvents.ITEM_ARMOR_EQUIP_GENERIC, 1.0F, 1.0F);
+						interactionManager.clickSlot(player.playerScreenHandler.syncId, armorIndexSlot,
+								currentItemIndex, SlotActionType.SWAP, player);
+						return TypedActionResult.success(stack);
 					}
-					player.playSound(stack.getItem() == Items.ELYTRA ? SoundEvents.ITEM_ARMOR_EQUIP_ELYTRA
-							: SoundEvents.ITEM_ARMOR_EQUIP_GENERIC, 1.0F, 1.0F);
-					interactionManager.clickSlot(player.playerScreenHandler.syncId, armorIndexSlot, currentItemIndex,
-							SlotActionType.SWAP, player);
-					return TypedActionResult.success(stack);
 				}
+			case ENTITY:
+			default:
+				return TypedActionResult.pass(ItemStack.EMPTY);
+
 			}
-			return TypedActionResult.pass(ItemStack.EMPTY);
+
 		});
 	}
 
